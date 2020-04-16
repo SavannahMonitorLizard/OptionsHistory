@@ -4,3 +4,4 @@ options_chains.json
 call.json
 put.json
 options.csv
+config.json

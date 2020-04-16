@@ -9,6 +9,10 @@ import math
 with open("secrets.json") as json_file:
     token = json.load(json_file)["auth"]
 
+with open("secrets.json") as config_file:
+    SYMBOL = json.load(config_file)["symbol"]
+    DATE = json.load(config_file)["date"]
+
 HEADERS = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
 APISERVER = "https://sandbox.tradier.com" # Change here to use a different API
 STRIKERANGE = 5 # Change here to get a larger or smaller range of options by their distance to the current price, number is percentage, percentage is 100 / x
@@ -202,4 +206,4 @@ def get_price_range(start: int, end: int):
 
     return list(range(start, end + 1))
 
-request("VZ", "2020-04-03")
+request(SYMBOL, DATE)
