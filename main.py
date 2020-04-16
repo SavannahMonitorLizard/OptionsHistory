@@ -1,4 +1,4 @@
-import json
+import json, csv
 import pandas as pd
 import numpy as np
 import requests
@@ -14,8 +14,10 @@ APISERVER = "https://sandbox.tradier.com" # Change here to use a different API
 STRIKERANGE = 5 # Change here to get a larger or smaller range of options by their distance to the current price, number is percentage, percentage is 100 / x
 
 def request(symbol: str, date: str):
-    call1 = call(symbol, date)
-    put1 = put(symbol, date)
+    chain, calls, dates = call(symbol, date)
+    chain, puts, dates = put(symbol, date)
+
+    write_csv(calls, dates, puts, chain)
 
 def request_history(symbol: str, start: str, end: str):
     response = requests.get(f'{APISERVER}/v1/markets/history', params={'symbol': symbol, 'start': start, 'end': end}, headers=HEADERS)
@@ -56,6 +58,8 @@ def get_day_price(symbol: str, date):
 def call(symbol: str, date: str):
     
     chain = []
+    calls = []
+    dates = []
 
     day = datetime.strptime(date, "%Y-%m-%d")
     day = get_friday_last_year(day).strftime("%y%m%d")
@@ -64,16 +68,33 @@ def call(symbol: str, date: str):
     price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
 
     for price in price_range:
-        chain.append(request_chain(f"{symbol}{day[0:2]}{day[2:4]}{day[4:6]}C{price:05d}000", datetime.strptime(day, "%y%m%d") - timedelta(days=5)))
+        
+        option_chain = request_chain(f"{symbol}{day[0:2]}{day[2:4]}{day[4:6]}C{price:05d}000", datetime.strptime(day, "%y%m%d") - timedelta(days=5))
+        
+        if not option_chain["history"] == None:
+
+            if not type(option_chain["history"]["day"]) == list:
+                calls.append(option_chain["history"]["day"]["high"])
+                dates.append(option_chain["history"]["day"]["date"])
+                option_chain["history"]["day"]["strike"] = price
+            else:
+                for i in range(len(option_chain["history"]["day"])):
+                    calls.append(option_chain["history"]["day"][i]["high"])
+                    dates.append(option_chain["history"]["day"][i]["date"])
+                    option_chain["history"]["day"][i]["strike"] = price
     
+            chain.append(option_chain)
+
     with open("call.json", "w") as write_file:
         json.dump(chain, write_file, indent=4, sort_keys=True)
 
-    return chain
+    return chain, calls, dates
 
 def put(symbol: str, date: str):
     
     chain = []
+    puts = []
+    dates = []
 
     day = datetime.strptime(date, "%Y-%m-%d")
     day = get_friday_last_year(day).strftime("%y%m%d")
@@ -82,12 +103,51 @@ def put(symbol: str, date: str):
     price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
 
     for price in price_range:
-        chain.append(request_chain(f"{symbol}{day[0:2]}{day[2:4]}{day[4:6]}P{price:05d}000", datetime.strptime(day, "%y%m%d") - timedelta(days=5)))
+        
+        option_chain = request_chain(f"{symbol}{day[0:2]}{day[2:4]}{day[4:6]}P{price:05d}000", datetime.strptime(day, "%y%m%d") - timedelta(days=5))
+        
+        if not option_chain["history"] == None:
+
+            if not type(option_chain["history"]["day"]) == list:
+                puts.append(option_chain["history"]["day"]["high"])
+                dates.append(option_chain["history"]["day"]["date"])
+                option_chain["history"]["day"]["strike"] = price
+            else:
+                for i in range(len(option_chain["history"]["day"])):
+                    puts.append(option_chain["history"]["day"][i]["high"])
+                    dates.append(option_chain["history"]["day"][i]["date"])
+                    option_chain["history"]["day"][i]["strike"] = price
     
+            chain.append(option_chain)
+
     with open("put.json", "w") as write_file:
         json.dump(chain, write_file, indent=4, sort_keys=True)
+
+    return chain, puts, dates
+
+def write_csv(calls, dates, puts, chain):
+    
+    strikes = get_strikes(chain)
+
+    with open("options.csv", "a+", newline="") as output_file:
+        wr = csv.writer(output_file)
+        for i in range(len(strikes)):
+            wr.writerow([calls[i], dates[i], strikes[i], puts[i]])
         
-    return chain
+def get_strikes(chain):
+    
+    strikes = []
+    for i in range(len(chain)):
+        
+        if type(chain[i]["history"]["day"]) == list:
+            
+            for e in range(len(chain[i]["history"]["day"])):
+                strikes.append(chain[i]["history"]["day"][e]["strike"])
+        
+        else:
+            strikes.append(chain[i]["history"]["day"]["strike"])
+
+    return strikes
 
 def third_fridays(d, n):
     """Given a date, calculates n next third fridays
