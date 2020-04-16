@@ -9,7 +9,7 @@ import math
 with open("secrets.json") as json_file:
     token = json.load(json_file)["auth"]
 
-with open("secrets.json") as config_file:
+with open("config.json") as config_file:
     SYMBOL = json.load(config_file)["symbol"]
     DATE = json.load(config_file)["date"]
 
