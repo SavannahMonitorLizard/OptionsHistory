@@ -14,9 +14,8 @@ APISERVER = "https://sandbox.tradier.com" # Change here to use a different API
 STRIKERANGE = 5 # Change here to get a larger or smaller range of options by their distance to the current price
 
 def request(symbol: str, date: str):
-    request_options_chains(symbol, date)
     call1 = call(symbol, date)
-    print(call1)
+    put1 = put(symbol, date)
 
 def request_history(symbol: str, start: str, end: str):
     response = requests.get(f'{APISERVER}/v1/markets/history', params={'symbol': symbol, 'start': start, 'end': end}, headers=HEADERS)
@@ -67,7 +66,7 @@ def call(symbol: str, date: str):
     for price in price_range:
         chain.append(request_chain(f"{symbol}{day[0:2]}{day[2:4]}{day[4:6]}C{price:05d}000", datetime.strptime(day, "%y%m%d") - timedelta(days=5)))
     
-    with open("chain.json", "w") as write_file:
+    with open("call.json", "w") as write_file:
         json.dump(chain, write_file, indent=4, sort_keys=True)
 
     return chain
