@@ -11,7 +11,7 @@ with open("secrets.json") as json_file:
 
 HEADERS = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
 APISERVER = "https://sandbox.tradier.com" # Change here to use a different API
-STRIKERANGE = 5 # Change here to get a larger or smaller range of options by their distance to the current price
+STRIKERANGE = 5 # Change here to get a larger or smaller range of options by their distance to the current price, number is percentage, percentage is 100 / x
 
 def request(symbol: str, date: str):
     call1 = call(symbol, date)
@@ -61,7 +61,7 @@ def call(symbol: str, date: str):
     day = get_friday_last_year(day).strftime("%y%m%d")
 
     price = math.floor(get_day_price(symbol, day))
-    price_range = get_price_range(price - STRIKERANGE, price + STRIKERANGE)
+    price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
 
     for price in price_range:
         chain.append(request_chain(f"{symbol}{day[0:2]}{day[2:4]}{day[4:6]}C{price:05d}000", datetime.strptime(day, "%y%m%d") - timedelta(days=5)))
@@ -79,7 +79,7 @@ def put(symbol: str, date: str):
     day = get_friday_last_year(day).strftime("%y%m%d")
 
     price = math.floor(get_day_price(symbol, day))
-    price_range = get_price_range(price - STRIKERANGE, price + STRIKERANGE)
+    price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
 
     for price in price_range:
         chain.append(request_chain(f"{symbol}{day[0:2]}{day[2:4]}{day[4:6]}P{price:05d}000", datetime.strptime(day, "%y%m%d") - timedelta(days=5)))
