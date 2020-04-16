@@ -134,10 +134,11 @@ def put(symbol: str, date: str):
 def write_csv(calls, dates, puts, chain):
     
     strikes = get_strikes(chain)
+    shortest = min([calls, dates, strikes, puts], key=len)
 
     with open("options.csv", "a+", newline="") as output_file:
         wr = csv.writer(output_file)
-        for i in range(len(strikes)):
+        for i in range(len(shortest)):
             wr.writerow([calls[i], dates[i], strikes[i], puts[i]])
         
 def get_strikes(chain):
