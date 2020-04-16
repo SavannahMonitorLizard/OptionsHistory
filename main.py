@@ -10,8 +10,10 @@ with open("secrets.json") as json_file:
     token = json.load(json_file)["auth"]
 
 with open("config.json") as config_file:
-    SYMBOL = json.load(config_file)["symbol"]
-    DATE = json.load(config_file)["date"]
+    config_json = json.load(config_file)
+    
+    SYMBOL = config_json["symbol"]
+    DATE = config_json["date"]
 
 HEADERS = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
 APISERVER = "https://sandbox.tradier.com" # Change here to use a different API
