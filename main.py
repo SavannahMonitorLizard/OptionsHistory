@@ -20,10 +20,9 @@ APISERVER = "https://sandbox.tradier.com" # Change here to use a different API
 STRIKERANGE = 5 # Change here to get a larger or smaller range of options by their distance to the current price, number is percentage, percentage is 100 / x
 
 def request(symbol: str, date: str):
-    chain, calls, dates = call(symbol, date)
-    chain, puts, dates = put(symbol, date)
-
-    write_csv(calls, dates, puts, chain)
+    # chain, calls, dates = call(symbol, date)
+    # chain, puts, dates = put(symbol, date)
+    get_dataframe("put.csv")
 
 def request_history(symbol: str, start: str, end: str):
     response = requests.get(f'{APISERVER}/v1/markets/history', params={'symbol': symbol, 'start': start, 'end': end}, headers=HEADERS)
@@ -91,6 +90,15 @@ def call(symbol: str, date: str):
     
             chain.append(option_chain)
 
+            with open("call.csv", "a+", newline="") as output_file:
+                wr = csv.writer(output_file)
+                
+                if not type(option_chain["history"]["day"]) == list:
+                    wr.writerow([option_chain["history"]["day"]["high"], option_chain["history"]["day"]["date"], option_chain["history"]["day"]["strike"]])
+                else:
+                    for i in range(len(option_chain["history"]["day"])):
+                        wr.writerow([option_chain["history"]["day"][i]["high"], option_chain["history"]["day"][i]["date"], option_chain["history"]["day"][i]["strike"]])
+
     with open("call.json", "w") as write_file:
         json.dump(chain, write_file, indent=4, sort_keys=True)
 
@@ -126,21 +134,20 @@ def put(symbol: str, date: str):
     
             chain.append(option_chain)
 
+            with open("put.csv", "a+", newline="") as output_file:
+                wr = csv.writer(output_file)
+                
+                if not type(option_chain["history"]["day"]) == list:
+                    wr.writerow([option_chain["history"]["day"]["high"], option_chain["history"]["day"]["date"], option_chain["history"]["day"]["strike"]])
+                else:
+                    for i in range(len(option_chain["history"]["day"])):
+                        wr.writerow([option_chain["history"]["day"][i]["high"], option_chain["history"]["day"][i]["date"], option_chain["history"]["day"][i]["strike"]])
+
     with open("put.json", "w") as write_file:
         json.dump(chain, write_file, indent=4, sort_keys=True)
 
     return chain, puts, dates
 
-def write_csv(calls, dates, puts, chain):
-    
-    strikes = get_strikes(chain)
-    shortest = min([calls, dates, strikes, puts], key=len)
-
-    with open("options.csv", "a+", newline="") as output_file:
-        wr = csv.writer(output_file)
-        for i in range(len(shortest)):
-            wr.writerow([calls[i], dates[i], strikes[i], puts[i]])
-        
 def get_strikes(chain):
     
     strikes = []
@@ -155,6 +162,11 @@ def get_strikes(chain):
             strikes.append(chain[i]["history"]["day"]["strike"])
 
     return strikes
+
+def get_dataframe(filename: str):
+    """Given a path filename, returns a pandas dataframe of that file"""
+    
+    return pd.read_csv("put.csv")
 
 def third_fridays(d, n):
     """Given a date, calculates n next third fridays
