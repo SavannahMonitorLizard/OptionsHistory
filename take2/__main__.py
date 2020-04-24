@@ -16,7 +16,7 @@ with open("config.json") as config_file:
     SYMBOL = config_json["symbol"]
     DATE = config_json["date"]
 
-if platform.system() == "Windows":
+if platform.system().lower() == "windows":
     APISERVER = "https://sandbox.tradier.com"
 else:
     APISERVER = "https://api.tradier.com"
@@ -38,7 +38,8 @@ def request_history(symbol: str, start: str, end: str, jsonyes=False, interval="
     return history
 
 def request_options_chains(symbol: str, expiration: str, greeks=False, jsonyes=False):
-    """Expiration should be formatted as %Y-%m-%d"""
+    """Expiration should be formatted as %Y-%m-%d
+    NOTE: Only works for options in the future"""
     
     response = requests.get(f'{APISERVER}/v1/markets/options/chains', params={'symbol': symbol, "expiration": expiration, "greeks": greeks}, headers=HEADERS)
 
@@ -59,4 +60,31 @@ def request_chain(symbol: str, start: str, jsonyes=False):
 
     return chain
 
-print(request_chain(SYMBOL, DATE))
+def create_call_option_symbol(symbol: str, date: str, strike: int):
+    """Date should be formmated as %Y-%m-%d"""
+
+    dateObj = datetime.strptime(date, "%Y-%m-%d")
+    dateShort = dateObj.strftime("%y%m%d")
+
+    return f"{symbol}{dateShort[0:2]}{dateShort[2:4]}{dateShort[4:6]}C{strike:05d}000"
+
+def create_put_option_symbol(symbol: str, date: str, strike: int):
+    """Date should be formmated as %Y-%m-%d"""
+
+    dateObj = datetime.strptime(date, "%Y-%m-%d")
+    dateShort = dateObj.strftime("%y%m%d")
+
+    return f"{symbol}{dateShort[0:2]}{dateShort[2:4]}{dateShort[4:6]}P{strike:05d}000"
+
+def get_date_strike(symbol: str, date: str):
+    """Date should be formmated as %Y-%m-%d"""
+    
+    dateObj = datetime.strptime(date, "%Y-%m-%d")
+    dateObjEnd = dateObj + timedelta(days=1)
+    dateEnd = dateObjEnd.strftime("%Y-%m-%d")
+
+    history = request_history(symbol, date, dateEnd)
+
+    return history["history"]["day"]["close"]
+
+print(create_call_option_symbol(SYMBOL, DATE, math.floor(get_date_strike(SYMBOL, DATE))))
