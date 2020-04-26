@@ -23,6 +23,7 @@ else:
 
 HEADERS = {'Authorization': f'Bearer {token}', 'Accept': 'application/json'}
 # APISERVER = "https://sandbox.tradier.com" # Change here to use a different API
+STRIKERANGE = 5 # Change here to get a larger or smaller range of options by their distance to the current price, number is percentage, percentage is 100 / x
 
 def request_history(symbol: str, start: str, end: str, jsonyes=False, interval="daily"):
     """Start and end should be formmated as %Y-%m-%d"""
@@ -40,7 +41,7 @@ def request_history(symbol: str, start: str, end: str, jsonyes=False, interval="
 def request_options_chains(symbol: str, expiration: str, greeks=False, jsonyes=False):
     """Expiration should be formatted as %Y-%m-%d
     NOTE: Only works for options in the future"""
-    
+
     response = requests.get(f'{APISERVER}/v1/markets/options/chains', params={'symbol': symbol, "expiration": expiration, "greeks": greeks}, headers=HEADERS)
 
     options_chains = response.json()
@@ -51,6 +52,8 @@ def request_options_chains(symbol: str, expiration: str, greeks=False, jsonyes=F
     return options_chains
 
 def request_chain(symbol: str, start: str, jsonyes=False):
+    """Start should be formmated as %Y-%m-%d"""
+
     response = requests.get(f'{APISERVER}/v1/markets/history', params={'symbol': symbol, "start": start}, headers=HEADERS)
 
     chain = response.json()
@@ -87,4 +90,152 @@ def get_date_strike(symbol: str, date: str):
 
     return history["history"]["day"]["close"]
 
-print(create_call_option_symbol(SYMBOL, DATE, math.floor(get_date_strike(SYMBOL, DATE))))
+def call(symbol: str, date: str, csvyes=False, jsonyes=False):
+
+    chain = []
+    calls = []
+    dates = []
+
+    price = math.floor(get_date_strike(symbol, date))
+    price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
+
+    for price in price_range:
+        
+        option_chain = request_chain(create_call_option_symbol(symbol, date, price), datetime.strptime(date, "%Y-%m-%d") - timedelta(days=5))
+        
+        if not option_chain["history"] == None:
+
+            if not type(option_chain["history"]["day"]) == list:
+                calls.append(option_chain["history"]["day"]["high"])
+                dates.append(option_chain["history"]["day"]["date"])
+                option_chain["history"]["day"]["strike"] = get_date_strike(symbol, date)
+            else:
+                for i in range(len(option_chain["history"]["day"])):
+                    calls.append(option_chain["history"]["day"][i]["high"])
+                    dates.append(option_chain["history"]["day"][i]["date"])
+                    option_chain["history"]["day"][i]["strike"] = get_date_strike(symbol, date)
+
+            chain.append(option_chain)
+
+            if csvyes:
+                    
+                f = open("call.csv", "w")
+                f.truncate()
+                f.close()
+
+                with open("call.csv", "a+", newline="") as output_file:
+                    wr = csv.writer(output_file)
+                    
+                    if not type(option_chain["history"]["day"]) == list:
+                        wr.writerow([option_chain["history"]["day"]["high"], option_chain["history"]["day"]["date"], option_chain["history"]["day"]["strike"]])
+                    else:
+                        for i in range(len(option_chain["history"]["day"])):
+                            wr.writerow([option_chain["history"]["day"][i]["high"], option_chain["history"]["day"][i]["date"], option_chain["history"]["day"][i]["strike"]])
+
+    if jsonyes:
+        with open("call.json", "w") as write_file:
+            json.dump(chain, write_file, indent=4, sort_keys=True)
+
+    return chain, calls, dates
+
+def call(symbol: str, date: str, csvyes=False, jsonyes=False):
+
+    chain = []
+    puts = []
+    dates = []
+
+    price = math.floor(get_date_strike(symbol, date))
+    price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
+
+    for price in price_range:
+        
+        option_chain = request_chain(create_put_option_symbol(symbol, date, price), datetime.strptime(date, "%Y-%m-%d") - timedelta(days=5))
+        
+        if not option_chain["history"] == None:
+
+            if not type(option_chain["history"]["day"]) == list:
+                puts.append(option_chain["history"]["day"]["high"])
+                dates.append(option_chain["history"]["day"]["date"])
+                option_chain["history"]["day"]["strike"] = get_date_strike(symbol, date)
+            else:
+                for i in range(len(option_chain["history"]["day"])):
+                    puts.append(option_chain["history"]["day"][i]["high"])
+                    dates.append(option_chain["history"]["day"][i]["date"])
+                    option_chain["history"]["day"][i]["strike"] = get_date_strike(symbol, date)
+
+            chain.append(option_chain)
+
+            if csvyes:
+
+                f = open("put.csv", "w")
+                f.truncate()
+                f.close()
+
+                with open("put.csv", "a+", newline="") as output_file:
+                    wr = csv.writer(output_file)
+                    
+                    if not type(option_chain["history"]["day"]) == list:
+                        wr.writerow([option_chain["history"]["day"]["high"], option_chain["history"]["day"]["date"], option_chain["history"]["day"]["strike"]])
+                    else:
+                        for i in range(len(option_chain["history"]["day"])):
+                            wr.writerow([option_chain["history"]["day"][i]["high"], option_chain["history"]["day"][i]["date"], option_chain["history"]["day"][i]["strike"]])
+
+    if jsonyes:
+        with open("put.json", "w") as write_file:
+            json.dump(chain, write_file, indent=4, sort_keys=True)
+
+    return chain, puts, dates
+
+def get_price_range(start: int, end: int):
+    """Returns a list of the numbers start to end, inclusive"""
+
+    return list(range(start, end + 1))
+
+def get_week_price(symbol: str, date):
+    """Given a symbol and a date, gets the high price of that week"""
+
+    history = request_history(symbol, datetime.strptime(date, '%Y-%m-%d') - timedelta(days=5), (datetime.strptime(date, '%Y-%m-%d')) + timedelta(days=1))
+
+    return history
+
+def get_add_the_money(symbol: str, date):
+    
+    history = get_week_price(symbol, date)
+    # chain, calls, dates = call(symbol, date)
+    # chain, puts, dates = puts(symbol, date)
+
+    with open("call.json") as call_file:
+        chain = json.load(call_file)
+
+    date_price = {}
+    date_add_the_money = {}
+    dates = []
+    over = []
+    day_prices = []
+    final = []
+
+    for day in history["history"]["day"]:
+        date_price.setdefault(day["date"], day["close"])
+
+    for i in chain:
+        if type(i["history"]["day"]) == list:
+            for day in i["history"]["day"]:
+                dates.append(day["date"])
+                if day["strike"] > date_price[day["date"]]:
+                    over.append(day)
+        else:
+            dates.append(i["history"]["day"]["date"])
+            if i["history"]["day"]["strike"] > date_price[i["history"]["day"]["date"]]:
+                over.append(i["history"]["day"])
+
+    for i in list(set(dates)):
+        for e in over:
+            if e["date"] == i:
+                day_prices.append(e)
+
+        print(day_prices)
+        # lowest = day_prices[0]
+        
+        # print(lowest)
+
+get_add_the_money(SYMBOL, DATE)
