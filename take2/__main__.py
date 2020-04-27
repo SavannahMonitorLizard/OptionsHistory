@@ -198,21 +198,16 @@ def get_week_price(symbol: str, date):
 
     return history
 
-def get_add_the_money(symbol: str, date):
-    
-    history = get_week_price(symbol, date)
-    # chain, calls, dates = call(symbol, date)
-    # chain, puts, dates = puts(symbol, date)
+def get_add_the_money_strikes(symbol: str, date: str, chain):
 
-    with open("call.json") as call_file:
-        chain = json.load(call_file)
+    history = get_week_price(symbol, date)
 
     date_price = {}
     date_add_the_money = {}
     dates = []
     over = []
     day_prices = []
-    final = []
+    final = {}
 
     for day in history["history"]["day"]:
         date_price.setdefault(day["date"], day["close"])
@@ -229,13 +224,39 @@ def get_add_the_money(symbol: str, date):
                 over.append(i["history"]["day"])
 
     for i in list(set(dates)):
+        day_prices = []
+        day_price = []
         for e in over:
             if e["date"] == i:
                 day_prices.append(e)
 
-        print(day_prices)
-        # lowest = day_prices[0]
-        
-        # print(lowest)
+        for price in day_prices:
+            day_price.append(price["strike"])
 
-get_add_the_money(SYMBOL, DATE)
+        day_price.sort()
+        final.setdefault(i, day_price[0])
+
+    return final
+
+def get_add_the_money(symbol: str, date: str, strikes, chain):
+    
+    final = {}
+
+    for i in chain:
+        if type(i["history"]["day"]) == list:
+            for day in i["history"]["day"]:
+                for k, v in strikes.items():
+                    if day["strike"] == v:
+                        final.setdefault(k, day)
+        else:
+            for k, v in strikes.items():
+                    if day["strike"] == v:
+                        final.setdefault(k, i["history"]["day"])
+
+    return final
+
+with open("call.json") as call_file:
+    chain = json.load(call_file)
+
+strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
+print(get_add_the_money(SYMBOL, DATE, strikes, chain))
