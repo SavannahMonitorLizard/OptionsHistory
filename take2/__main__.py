@@ -108,12 +108,12 @@ def call(symbol: str, date: str, csvyes=False, jsonyes=False):
             if not type(option_chain["history"]["day"]) == list:
                 calls.append(option_chain["history"]["day"]["high"])
                 dates.append(option_chain["history"]["day"]["date"])
-                option_chain["history"]["day"]["strike"] = get_date_strike(symbol, date)
+                option_chain["history"]["day"]["strike"] = price
             else:
                 for i in range(len(option_chain["history"]["day"])):
                     calls.append(option_chain["history"]["day"][i]["high"])
                     dates.append(option_chain["history"]["day"][i]["date"])
-                    option_chain["history"]["day"][i]["strike"] = get_date_strike(symbol, date)
+                    option_chain["history"]["day"][i]["strike"] = price
 
             chain.append(option_chain)
 
@@ -138,7 +138,7 @@ def call(symbol: str, date: str, csvyes=False, jsonyes=False):
 
     return chain, calls, dates
 
-def call(symbol: str, date: str, csvyes=False, jsonyes=False):
+def put(symbol: str, date: str, csvyes=False, jsonyes=False):
 
     chain = []
     puts = []
@@ -156,12 +156,12 @@ def call(symbol: str, date: str, csvyes=False, jsonyes=False):
             if not type(option_chain["history"]["day"]) == list:
                 puts.append(option_chain["history"]["day"]["high"])
                 dates.append(option_chain["history"]["day"]["date"])
-                option_chain["history"]["day"]["strike"] = get_date_strike(symbol, date)
+                option_chain["history"]["day"]["strike"] = price
             else:
                 for i in range(len(option_chain["history"]["day"])):
                     puts.append(option_chain["history"]["day"][i]["high"])
                     dates.append(option_chain["history"]["day"][i]["date"])
-                    option_chain["history"]["day"][i]["strike"] = get_date_strike(symbol, date)
+                    option_chain["history"]["day"][i]["strike"] = price
 
             chain.append(option_chain)
 
@@ -197,6 +197,19 @@ def get_week_price(symbol: str, date):
     history = request_history(symbol, datetime.strptime(date, '%Y-%m-%d') - timedelta(days=5), (datetime.strptime(date, '%Y-%m-%d')) + timedelta(days=1))
 
     return history
+
+def remove_dates(dictionary):
+
+    new_dict = {}
+    new_val = {}
+
+    for k, v in dictionary.items():
+        for key, value in v.items():
+            if key != "date":
+                new_val.setdefault(key, value)
+        new_dict.setdefault(k, new_val)
+
+    return new_dict
 
 def get_add_the_money_strikes(symbol: str, date: str, chain):
 
@@ -247,16 +260,32 @@ def get_add_the_money(symbol: str, date: str, strikes, chain):
             for day in i["history"]["day"]:
                 for k, v in strikes.items():
                     if day["strike"] == v:
-                        final.setdefault(k, day)
+                        if k != "date":
+                            final.setdefault(k, day)
         else:
             for k, v in strikes.items():
-                    if day["strike"] == v:
-                        final.setdefault(k, i["history"]["day"])
+                    if i["history"]["day"]["strike"] == v:
+                        if k != "date":
+                            final.setdefault(k, i["history"]["day"])
 
     return final
 
-with open("call.json") as call_file:
-    chain = json.load(call_file)
+chain, calls, dates = call(SYMBOL, DATE, jsonyes=True)
 
 strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
-print(get_add_the_money(SYMBOL, DATE, strikes, chain))
+add_the_money_call = get_add_the_money(SYMBOL, DATE, strikes, chain)
+
+add_the_money_call = remove_dates(add_the_money_call)
+
+with open("add_the_money_call.json", "w") as write_file:
+    json.dump(add_the_money_call, write_file, indent=4, sort_keys=True)
+
+chain, puts, dates = put(SYMBOL, DATE, jsonyes=True)
+
+strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
+add_the_money_put = get_add_the_money(SYMBOL, DATE, strikes, chain)
+
+add_the_money_put = remove_dates(add_the_money_put)
+
+with open("add_the_money_put.json", "w") as write_file:
+    json.dump(add_the_money_put, write_file, indent=4, sort_keys=True)
