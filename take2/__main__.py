@@ -88,7 +88,13 @@ def get_date_strike(symbol: str, date: str):
 
     history = request_history(symbol, date, dateEnd)
 
-    return history["history"]["day"]["close"]
+    if history["history"] is not None:
+        return history["history"]["day"]["close"], date
+    else:
+        dateObj = datetime.strptime(date, "%Y-%m-%d")
+        dateObj = dateObj - timedelta(days=1)
+        date = dateObj.strftime("%Y-%m-%d")
+        return get_date_strike(symbol, date)
 
 def call(symbol: str, date: str, csvyes=False, jsonyes=False):
 
@@ -96,7 +102,9 @@ def call(symbol: str, date: str, csvyes=False, jsonyes=False):
     calls = []
     dates = []
 
-    price = math.floor(get_date_strike(symbol, date))
+    price, date = get_date_strike(symbol, date)
+    price = math.floor(price)
+
     price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
 
     for price in price_range:
@@ -144,7 +152,9 @@ def put(symbol: str, date: str, csvyes=False, jsonyes=False):
     puts = []
     dates = []
 
-    price = math.floor(get_date_strike(symbol, date))
+    price, date = get_date_strike(symbol, date)
+    price = math.floor(price)
+
     price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
 
     for price in price_range:
