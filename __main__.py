@@ -262,6 +262,19 @@ def get_add_the_money(symbol: str, date: str, strikes, chain):
     
     final = {}
 
+    # for i in chain:
+    #     if type(i["history"]["day"]) == list:
+    #         for day in i["history"]["day"]:
+    #             for k, v in strikes.items():
+    #                 if day["strike"] == v:
+    #                     if k != "date":
+    #                         final.setdefault(k, day)
+    #     else:
+    #         for k, v in strikes.items():
+    #             if i["history"]["day"]["strike"] == v:
+    #                 if k != "date":
+    #                     final.setdefault(k, i["history"]["day"])
+
     for k, v in strikes.items():
         for i in chain:
             if type(i["history"]["day"]) == list:
@@ -282,7 +295,7 @@ strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
 print(strikes)
 add_the_money_call = get_add_the_money(SYMBOL, DATE, strikes, chain)
 
-add_the_money_call = remove_dates(add_the_money_call)
+#add_the_money_call = remove_dates(add_the_money_call)
 
 with open("add_the_money_call.json", "w") as write_file:
     json.dump(add_the_money_call, write_file, indent=4, sort_keys=True)
@@ -292,7 +305,7 @@ chain, puts, dates = put(SYMBOL, DATE, jsonyes=True)
 strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
 add_the_money_put = get_add_the_money(SYMBOL, DATE, strikes, chain)
 
-add_the_money_put = remove_dates(add_the_money_put)
+#add_the_money_put = remove_dates(add_the_money_put)
 
 with open("add_the_money_put.json", "w") as write_file:
     json.dump(add_the_money_put, write_file, indent=4, sort_keys=True)
