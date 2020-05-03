@@ -292,7 +292,6 @@ def get_add_the_money(symbol: str, date: str, strikes, chain):
 chain, calls, dates = call(SYMBOL, DATE, jsonyes=True)
 
 strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
-print(strikes)
 add_the_money_call = get_add_the_money(SYMBOL, DATE, strikes, chain)
 
 #add_the_money_call = remove_dates(add_the_money_call)
