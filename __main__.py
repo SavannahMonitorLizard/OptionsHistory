@@ -86,9 +86,14 @@ def get_date_strike(symbol: str, date: str):
     dateObjEnd = dateObj + timedelta(days=1)
     dateEnd = dateObjEnd.strftime("%Y-%m-%d")
 
-    history = request_history(symbol, date, dateEnd)
-
-    return history["history"]["day"]["close"]
+    history = request_history(symbol, date, dateEnd, jsonyes=True)
+    if history["history"] is not None:
+        return history["history"]["day"]["close"], date
+    else:
+        dateObj = datetime.strptime(date, "%Y-%m-%d")
+        dateObjEnd = dateObj - timedelta(days=1)
+        date = dateObjEnd.strftime("%Y-%m-%d")
+        return get_date_strike(symbol, date)
 
 def call(symbol: str, date: str, csvyes=False, jsonyes=False):
 
@@ -96,7 +101,8 @@ def call(symbol: str, date: str, csvyes=False, jsonyes=False):
     calls = []
     dates = []
 
-    price = math.floor(get_date_strike(symbol, date))
+    price, date = get_date_strike(symbol, date)
+    price = math.floor(price)
     price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
 
     for price in price_range:
@@ -144,7 +150,8 @@ def put(symbol: str, date: str, csvyes=False, jsonyes=False):
     puts = []
     dates = []
 
-    price = math.floor(get_date_strike(symbol, date))
+    price, date = get_date_strike(symbol, date)
+    price = math.floor(price)
     price_range = get_price_range(round(price - price / STRIKERANGE), round(price + price / STRIKERANGE))
 
     for price in price_range:
@@ -255,37 +262,50 @@ def get_add_the_money(symbol: str, date: str, strikes, chain):
     
     final = {}
 
-    for i in chain:
-        if type(i["history"]["day"]) == list:
-            for day in i["history"]["day"]:
-                for k, v in strikes.items():
+    # for i in chain:
+    #     if type(i["history"]["day"]) == list:
+    #         for day in i["history"]["day"]:
+    #             for k, v in strikes.items():
+    #                 if day["strike"] == v:
+    #                     if k != "date":
+    #                         final.setdefault(k, day)
+    #     else:
+    #         for k, v in strikes.items():
+    #             if i["history"]["day"]["strike"] == v:
+    #                 if k != "date":
+    #                     final.setdefault(k, i["history"]["day"])
+
+    for k, v in strikes.items():
+        for i in chain:
+            if type(i["history"]["day"]) == list:
+                for day in i["history"]["day"]:
                     if day["strike"] == v:
-                        if k != "date":
+                        if k == day["date"]:
                             final.setdefault(k, day)
-        else:
-            for k, v in strikes.items():
-                    if i["history"]["day"]["strike"] == v:
-                        if k != "date":
-                            final.setdefault(k, i["history"]["day"])
+            else:
+                if i["history"]["day"]["strike"] == v:
+                    if k == day["date"]:
+                        final.setdefault(k, i["history"]["day"])
 
     return final
 
 chain, calls, dates = call(SYMBOL, DATE, jsonyes=True)
 
 strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
+print(strikes)
 add_the_money_call = get_add_the_money(SYMBOL, DATE, strikes, chain)
 
-add_the_money_call = remove_dates(add_the_money_call)
+#add_the_money_call = remove_dates(add_the_money_call)
 
 with open("add_the_money_call.json", "w") as write_file:
     json.dump(add_the_money_call, write_file, indent=4, sort_keys=True)
 
-chain, puts, dates = put(SYMBOL, DATE, jsonyes=True)
+# chain, puts, dates = put(SYMBOL, DATE, jsonyes=True)
 
-strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
-add_the_money_put = get_add_the_money(SYMBOL, DATE, strikes, chain)
+# strikes = get_add_the_money_strikes(SYMBOL, DATE, chain)
+# add_the_money_put = get_add_the_money(SYMBOL, DATE, strikes, chain)
 
-add_the_money_put = remove_dates(add_the_money_put)
+# add_the_money_put = remove_dates(add_the_money_put)
 
-with open("add_the_money_put.json", "w") as write_file:
-    json.dump(add_the_money_put, write_file, indent=4, sort_keys=True)
+# with open("add_the_money_put.json", "w") as write_file:
+#     json.dump(add_the_money_put, write_file, indent=4, sort_keys=True)
